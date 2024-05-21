@@ -32,6 +32,7 @@ import matplotlib.pyplot as plt
 from rt1 import RT1, detokenize_action, tokenize_action
 from load_data import DATASET_NAME_TO_TRAJECTORY_DATASET, DATASET_NAME_TO_WEIGHTS
 import sys
+import pdb
 
 # @title Batch, and sample one training sample
 
@@ -57,14 +58,6 @@ trajectory_dataset_iter = iter(dataset)
 
 sample = next(trajectory_dataset_iter)
 
-Image.fromarray(sample[rlds.OBSERVATION]['image'].numpy()[0][-1])
-
-sample[rlds.OBSERVATION]['image'].shape
-
-# @title Visualize one batch of training data
-
-batch_size = sample[rlds.OBSERVATION]['image'].shape[0]
-trajectory_length = sample[rlds.OBSERVATION]['image'].shape[1]
 
 SEQUENCE_LENGTH = 15
 NUM_ACTION_TOKENS = 11
@@ -112,7 +105,9 @@ model_output = rt1x_model.apply(
     act,
     train=False,
     rngs={"random": jax.random.PRNGKey(0)},
-)
+) # shape: [1, 1380, 512] (1, 15 * (81 + 11), 512)
+
+pdb.set_trace()
 
 # Inspect the model weights and output.
 
