@@ -1073,15 +1073,16 @@ def tokenize_action(
   action_tokens.append(terminate_episode)
 
   for act_name, act_min, act_max in [
-      ('world_vector', world_vector_range[0], world_vector_range[1]),
-      ('rotation_delta', -np.pi / 2, np.pi / 2),
-      ('gripper_closedness_action', -1.0, 1.0),
-      ('base_displacement_vertical_rotation', -np.pi, np.pi),
-      ('base_displacement_vector', -1.0, 1.0),
+      ('arms', -1.0, 1.0),
+      # ('world_vector', world_vector_range[0], world_vector_range[1]),
+      # ('rotation_delta', -np.pi / 2, np.pi / 2),
+      # ('gripper_closedness_action', -1.0, 1.0),
+      # ('base_displacement_vertical_rotation', -np.pi, np.pi),
+      # ('base_displacement_vector', -1.0, 1.0),
   ]:
     act = actions[act_name]
-    act = jnp.clip(act, act_min, act_max)
-    act = (act - act_min) / (act_max - act_min)
+    # act = jnp.clip(act, act_min, act_max)
+    # act = (act - act_min) / (act_max - act_min)
     act = act * (vocab_size - 1)
     act = act.astype(jnp.int32)
     action_tokens.append(act)
@@ -1111,27 +1112,29 @@ def detokenize_action(
   terminate_episode = jax.nn.one_hot(terminate_episode, 3)
 
   raw_actions = dict(
-      world_vector=tokenized_actions[:, 1:4].astype(jnp.float32),
-      rotation_delta=tokenized_actions[:, 4:7].astype(jnp.float32),
-      gripper_closedness_action=tokenized_actions[:, 7:8].astype(jnp.float32),
-      base_displacement_vertical_rotation=tokenized_actions[:, 8:9].astype(
-          jnp.float32
-      ),
-      base_displacement_vector=tokenized_actions[:, 9:11].astype(jnp.float32),
+    arms = tokenized_actions[:, 1:14].astype(jnp.float32),
+      # world_vector=tokenized_actions[:, 1:4].astype(jnp.float32),
+      # rotation_delta=tokenized_actions[:, 4:7].astype(jnp.float32),
+      # gripper_closedness_action=tokenized_actions[:, 7:8].astype(jnp.float32),
+      # base_displacement_vertical_rotation=tokenized_actions[:, 8:9].astype(
+      #     jnp.float32
+      # ),
+      # base_displacement_vector=tokenized_actions[:, 9:11].astype(jnp.float32),
   )
 
   act_dict = {'terminate_episode': terminate_episode.astype(jnp.int32)}
   for act_name, act_min, act_max in [
-      ('world_vector', world_vector_range[0], world_vector_range[1]),
-      ('rotation_delta', -np.pi / 2, np.pi / 2),
-      ('gripper_closedness_action', -1.0, 1.0),
-      ('base_displacement_vertical_rotation', -np.pi, np.pi),
-      ('base_displacement_vector', -1.0, 1.0),
+      ('arms', -1.0, 1.0),
+      # ('world_vector', world_vector_range[0], world_vector_range[1]),
+      # ('rotation_delta', -np.pi / 2, np.pi / 2),
+      # ('gripper_closedness_action', -1.0, 1.0),
+      # ('base_displacement_vertical_rotation', -np.pi, np.pi),
+      # ('base_displacement_vector', -1.0, 1.0),
   ]:
     act = raw_actions[act_name]
     act = act / (vocab_size - 1)
-    act = act * (act_max - act_min)
-    act = act + act_min
+    # act = act * (act_max - act_min)
+    # act = act + act_min
     act_dict[act_name] = act
 
   return act_dict

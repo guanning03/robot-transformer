@@ -15,12 +15,13 @@ import reverb
 from rlds import transformations
 import tensorflow_datasets as tfds
 import tree
+from format import pytree_display, dataset_display, standardize_pytree
 
 import abc
 import dataclasses
 import math
 from typing import Dict, Optional
-
+import json
 from rlds import rlds_types
 import tensorflow as tf
 from PIL import Image
@@ -30,7 +31,7 @@ import functools
 from typing import Callable, Sequence
 import matplotlib.pyplot as plt
 from rt1 import RT1, detokenize_action, tokenize_action
-from load_data import DATASET_NAME_TO_TRAJECTORY_DATASET, DATASET_NAME_TO_WEIGHTS
+from load_data import DATASET_NAME_TO_TRAJECTORY_DATASET, DATASET_NAME_TO_WEIGHTS, get_file_list, load_data_from_hdf5
 import sys
 import pdb
 
@@ -60,7 +61,7 @@ sample = next(trajectory_dataset_iter)
 
 
 SEQUENCE_LENGTH = 15
-NUM_ACTION_TOKENS = 11
+NUM_ACTION_TOKENS = 15
 LAYER_SIZE = 256
 VOCAB_SIZE = 512
 NUM_IMAGE_TOKENS = 81
@@ -107,7 +108,6 @@ model_output = rt1x_model.apply(
     rngs={"random": jax.random.PRNGKey(0)},
 ) # shape: [1, 1380, 512] (1, 15 * (81 + 11), 512)
 
-pdb.set_trace()
 
 # Inspect the model weights and output.
 
@@ -317,12 +317,24 @@ replicate_sharding = NamedSharding(mesh, P())
 
 global_batch_size = jax.device_count() * PER_DEVICE_BATCH_SIZE
 local_batch_size = jax.local_device_count() * PER_DEVICE_BATCH_SIZE
-train_dataset = train_dataset.batch(local_batch_size, drop_remainder=True)
+# train_dataset = train_dataset.batch(local_batch_size, drop_remainder=True)
 
-train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
+# train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
 
-train_iter = train_dataset.as_numpy_iterator()
+file_list = get_file_list("data")
+
+text_embeddings = json.load(open("text_embeddings.json", "r"))
+train_iter = load_data_from_hdf5(file_list, batch_size=global_batch_size, file_batch_size=global_batch_size // 2, embedding_dict=text_embeddings)
+
+# train_iter = train_dataset.as_numpy_iterator()
+
 sample_batch = jax.tree_map(lambda x: x, next(train_iter))
+
+pytree_display(sample_batch)
+
+import pdb; pdb.set_trace()
+
+### TODO: 在这个位置插入一个train_iter，要和sample_batch相同
 
 print(f"Local batch size: {local_batch_size}")
 print(f"Global batch size: {global_batch_size}")
