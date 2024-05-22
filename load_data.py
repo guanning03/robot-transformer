@@ -999,7 +999,7 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
     'is_first': np.array(is_first),
     'observation': {
         'image': np.array(image),
-        'natural_language': np.array(natural_language_embedding)
+        'natural_language_embedding': np.array(natural_language_embedding)
         },
     'action': {
         'arms': np.array(arms_action),

@@ -83,12 +83,14 @@ obs = {
     "natural_language_embedding": jnp.ones((1, 15, 512)),
 }
 act = {
-    "world_vector": jnp.ones((1, 15, 3)),
-    "rotation_delta": jnp.ones((1, 15, 3)),
-    "gripper_closedness_action": jnp.ones((1, 15, 1)),
-    "base_displacement_vertical_rotation": jnp.ones((1, 15, 1)),
-    "base_displacement_vector": jnp.ones((1, 15, 2)),
-    "terminate_episode": jnp.ones((1, 15, 3), dtype=jnp.int32),
+    # "world_vector": jnp.ones((1, 15, 3)),
+    # "rotation_delta": jnp.ones((1, 15, 3)),
+    # "gripper_closedness_action": jnp.ones((1, 15, 1)),
+    # "base_displacement_vertical_rotation": jnp.ones((1, 15, 1)),
+    # "base_displacement_vector": jnp.ones((1, 15, 2)),
+    # "terminate_episode": jnp.ones((1, 15, 3), dtype=jnp.int32),
+    'arms': jnp.ones((1, 15, 14)),
+    'terminate_episode': jnp.ones((1, 15, 3), dtype=jnp.int32),
 }
 
 variables = rt1x_model.init(
@@ -331,8 +333,6 @@ train_iter = load_data_from_hdf5(file_list, batch_size=global_batch_size, file_b
 sample_batch = jax.tree_map(lambda x: x, next(train_iter))
 
 pytree_display(sample_batch)
-
-import pdb; pdb.set_trace()
 
 ### TODO: 在这个位置插入一个train_iter，要和sample_batch相同
 
