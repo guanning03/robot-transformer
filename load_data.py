@@ -950,69 +950,67 @@ DATASET_NAME_TO_WEIGHTS = {
 
 def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
     
-  def pad_and_resize(image, target_size):
-    original_size = image.size
-    ratio = float(target_size) / max(original_size)
-    new_size = tuple([int(x * ratio) for x in original_size])
+    def pad_and_resize(image, target_size):
+        original_size = image.size
+        ratio = float(target_size) / max(original_size)
+        new_size = tuple([int(x * ratio) for x in original_size])
+        
+        resized_image = image.resize(new_size, Image.Resampling.LANCZOS)
+        new_image = Image.new("RGB", (target_size, target_size))
+        new_image.paste(resized_image, ((target_size - new_size[0]) // 2, (target_size - new_size[1]) // 2))
+
+        return new_image
+
+    def bytes_image_to_np(image_bytes, image_size=300):
+        image = Image.open(io.BytesIO(image_bytes))
+        image = pad_and_resize(image, image_size)
+        image_array = np.array(image)
+        image_array = image_array[:,:,[2,1,0]] / 255.0
+        return image_array
     
-    resized_image = image.resize(new_size, Image.Resampling.LANCZOS)
-    new_image = Image.new("RGB", (target_size, target_size))
-    new_image.paste(resized_image, ((target_size - new_size[0]) // 2, (target_size - new_size[1]) // 2))
-
-    return new_image
-
-  def bytes_image_to_np(image_bytes, image_size=300):
-    image = Image.open(io.BytesIO(image_bytes))
-    image = pad_and_resize(image, image_size)
-    image_array = np.array(image)
-    image_array = image_array[:,:,[2,1,0]] / 255.0
-    return image_array
-  
-  file_list = random.sample(file_list, file_batch_size)
-  num_per_file = batch_size // file_batch_size
-  natural_language_embedding = []
-  image = []
-  arms_action = []
-  
-  length = np.random.randint(1, 16, batch_size)
-  is_first = np.zeros((batch_size, 15), dtype=bool)
-  for i in range(batch_size):
-    if length[i] != 15:
-      is_first[i, 15 - length[i]] = True
-      
-  terminate_episode = np.zeros((batch_size, 15, 3), dtype = np.int32)
-  terminate_episode[:,:,1] = 1
-  
-  files = random.sample(file_list, file_batch_size)
-  for i, file in enumerate(files):
-    with h5py.File(file, 'r') as f:
-      # natural_language_embedding.extend([embedding_dict[f['instruction'][()].decode('utf-8')] for _ in range(num_per_file)])
-      text_embedding = np.array(embedding_dict[f['instruction'][()].decode('utf-8')])
-      for j in range(num_per_file):
-        l = length[i * num_per_file + j]
-        natural_language_embedding.append([np.zeros(512) for _ in range(15 - l)] + [text_embedding for _ in range(l)])
-        traj_l = f['action'].shape[0]
-        start = np.random.randint(0, traj_l - l + 1)
-        image.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
-                            ((15 - l, 0), (0, 0), (0, 0), (0, 0)), 'constant'))
-        arms_action.append(np.pad(np.array(f['action'][start:start+l]), ((15 - l, 0), (0, 0)), 'constant'))
-  
-  batch = {
-    'is_first': np.array(is_first),
-    'observation': {
-        'image': np.array(image),
-        'natural_language_embedding': np.array(natural_language_embedding)
-        },
-    'action': {
-        'arms': np.array(arms_action),
-        'terminate_episode': terminate_episode
-    },
-    'is_last': np.zeros((batch_size, 15), dtype=bool),
-    'is_terminal': np.zeros((batch_size, 15), dtype=bool)
-    }
-  
-  
-  yield batch
+    while True:
+        file_list_sampled = random.sample(file_list, file_batch_size)
+        num_per_file = batch_size // file_batch_size
+        natural_language_embedding = []
+        image = []
+        arms_action = []
+        
+        length = np.random.randint(1, 16, batch_size)
+        is_first = np.zeros((batch_size, 15), dtype=bool)
+        for i in range(batch_size):
+            if length[i] != 15:
+                is_first[i, 15 - length[i]] = True
+                
+        terminate_episode = np.zeros((batch_size, 15, 3), dtype=np.int32)
+        terminate_episode[:,:,1] = 1
+        
+        for i, file in enumerate(file_list_sampled):
+            with h5py.File(file, 'r') as f:
+                text_embedding = np.array(embedding_dict[f['instruction'][()].decode('utf-8')])
+                for j in range(num_per_file):
+                    l = length[i * num_per_file + j]
+                    natural_language_embedding.append([np.zeros(512) for _ in range(15 - l)] + [text_embedding for _ in range(l)])
+                    traj_l = f['action'].shape[0]
+                    start = np.random.randint(0, traj_l - l + 1)
+                    image.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
+                                        ((15 - l, 0), (0, 0), (0, 0), (0, 0)), 'constant'))
+                    arms_action.append(np.pad(np.array(f['action'][start:start+l]), ((15 - l, 0), (0, 0)), 'constant'))
+        
+        batch = {
+            'is_first': np.array(is_first),
+            'observation': {
+                'image': np.array(image),
+                'natural_language_embedding': np.array(natural_language_embedding)
+                },
+            'action': {
+                'arms': np.array(arms_action),
+                'terminate_episode': terminate_episode
+            },
+            'is_last': np.zeros((batch_size, 15), dtype=bool),
+            'is_terminal': np.zeros((batch_size, 15), dtype=bool)
+            }
+        
+        yield batch
   
 def get_file_list(path):
   file_list = []
