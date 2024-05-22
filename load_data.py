@@ -986,9 +986,11 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
   files = random.sample(file_list, file_batch_size)
   for i, file in enumerate(files):
     with h5py.File(file, 'r') as f:
-      natural_language_embedding.extend([embedding_dict[f['instruction'][()].decode('utf-8')] for _ in range(num_per_file)])
+      # natural_language_embedding.extend([embedding_dict[f['instruction'][()].decode('utf-8')] for _ in range(num_per_file)])
+      text_embedding = np.array(embedding_dict[f['instruction'][()].decode('utf-8')])
       for j in range(num_per_file):
         l = length[i * num_per_file + j]
+        natural_language_embedding.append([np.zeros(512) for _ in range(15 - l)] + [text_embedding for _ in range(l)])
         traj_l = f['action'].shape[0]
         start = np.random.randint(0, traj_l - l + 1)
         image.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
@@ -1008,6 +1010,7 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
     'is_last': np.zeros((batch_size, 15), dtype=bool),
     'is_terminal': np.zeros((batch_size, 15), dtype=bool)
     }
+  
   
   yield batch
   
