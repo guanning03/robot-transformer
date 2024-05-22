@@ -1,10 +1,11 @@
 import tensorflow as tf
 import tensorflow_hub as hub
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = "3"
 import h5py
 import json
 
-model_url = "https://tfhub.dev/google/universal-sentence-encoder/4"
+model_url = "https://tfhub.dev/google/universal-sentence-encoder-large/5"
 model = hub.load(model_url)
 
 instructions = []

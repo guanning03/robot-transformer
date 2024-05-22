@@ -1,3 +1,6 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 2, 3'
+
 from typing import Any, Callable, Dict, Optional, Sequence, Union, NamedTuple, Tuple
 
 import copy
@@ -31,7 +34,7 @@ import functools
 from typing import Callable, Sequence
 import matplotlib.pyplot as plt
 from rt1 import RT1, detokenize_action, tokenize_action
-from load_data import DATASET_NAME_TO_TRAJECTORY_DATASET, DATASET_NAME_TO_WEIGHTS, get_file_list, load_data_from_hdf5
+from load_data import get_file_list, load_data_from_hdf5
 import sys
 import pdb
 
@@ -43,21 +46,21 @@ BATCH_SIZE = 6
 datasets = []
 weights = []
 
-for name, dataset in DATASET_NAME_TO_TRAJECTORY_DATASET.items():
+# for name, dataset in DATASET_NAME_TO_TRAJECTORY_DATASET.items():
 
-  datasets.append(dataset.shuffle(10))
-  weights.append(float(DATASET_NAME_TO_WEIGHTS[name]))
+#   datasets.append(dataset.shuffle(10))
+#   weights.append(float(DATASET_NAME_TO_WEIGHTS[name]))
 
-dataset = tf.data.Dataset.sample_from_datasets(datasets, weights=weights)
+# dataset = tf.data.Dataset.sample_from_datasets(datasets, weights=weights)
 
-# Larger shuffle buffer leads to better performance, but consumes more RAM
-dataset = dataset.shuffle(1)
+# # Larger shuffle buffer leads to better performance, but consumes more RAM
+# dataset = dataset.shuffle(1)
 
-dataset = dataset.batch(BATCH_SIZE)
+# dataset = dataset.batch(BATCH_SIZE)
 
-trajectory_dataset_iter = iter(dataset)
+# trajectory_dataset_iter = iter(dataset)
 
-sample = next(trajectory_dataset_iter)
+# sample = next(trajectory_dataset_iter)
 
 
 SEQUENCE_LENGTH = 15
@@ -242,7 +245,7 @@ def prepare_for_model_input(
 
 # Actual global batch size is 1024. Use a smaller batch size for this colab
 # example.
-PER_DEVICE_BATCH_SIZE = 2
+PER_DEVICE_BATCH_SIZE = 1
 
 def reshard(tree, shardings):
   """Take an arbitrarily sharded pytree and shard it according to `shardings`.
@@ -301,11 +304,11 @@ def tree_broadcast(prefix, target):
 NamedSharding = jax.sharding.NamedSharding
 P = jax.sharding.PartitionSpec
 
-train_dataset = tf.data.Dataset.sample_from_datasets(datasets, weights=weights)
+# train_dataset = tf.data.Dataset.sample_from_datasets(datasets, weights=weights)
 
-train_dataset = prepare_for_model_input(
-    train_dataset, target_height=300, target_width=300, training=True
-)
+# train_dataset = prepare_for_model_input(
+#     train_dataset, target_height=300, target_width=300, training=True
+# )
 
 # Creating mesh and shardings.
 num_devices = len(jax.devices())
