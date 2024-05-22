@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 2, 3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 from typing import Any, Callable, Dict, Optional, Sequence, Union, NamedTuple, Tuple
 
@@ -42,7 +42,7 @@ from flax.training import checkpoints
 
 # @title Batch, and sample one training sample
 
-BATCH_SIZE = 6
+MODE = 'pretrain' # 'finetune' or 'pretrain'
 
 # Larger shuffle buffer leads to better performance, but consumes more RAM
 datasets = []
@@ -119,15 +119,21 @@ def load_from_pretrained(checkpoint_path):
     }
 
     ### 对positional_embedding做特殊修改
-    variables['params']['Transformer_0']['Dense_1'] = scratch_variables['params']['Transformer_0']['Dense_1']
+    variables['params']['Transformer_0']['Dense_1'] = scratch_variables['params']['Transformer_0']['Dense_1'].copy()
     
     return variables
 
 pretrained_variables = load_from_pretrained('rt_1_x_jax')
-del scratch_variables
+
+if MODE == 'pretrain':
+  decision_variables = scratch_variables
+  del pretrained_variables
+elif MODE == 'finetune':
+  decision_variables = pretrained_variables
+  del scratch_variables
 
 model_output = rt1x_model.apply(
-    pretrained_variables,
+    decision_variables,
     obs,
     act,
     train=False,
@@ -137,7 +143,7 @@ model_output = rt1x_model.apply(
 
 # Inspect the model weights and output.
 
-param_count = sum(x.size for x in jax.tree_util.tree_leaves(pretrained_variables["params"]))
+param_count = sum(x.size for x in jax.tree_util.tree_leaves(decision_variables["params"]))
 print(f"Number of parameters: {param_count}")
 
 print(f"Output shape: {model_output.shape}.")
@@ -266,7 +272,7 @@ def prepare_for_model_input(
 
 # Actual global batch size is 1024. Use a smaller batch size for this colab
 # example.
-PER_DEVICE_BATCH_SIZE = 1
+PER_DEVICE_BATCH_SIZE = 4
 
 def reshard(tree, shardings):
   """Take an arbitrarily sharded pytree and shard it according to `shardings`.
@@ -350,7 +356,7 @@ local_batch_size = jax.local_device_count() * PER_DEVICE_BATCH_SIZE
 file_list = get_file_list("data")
 
 text_embeddings = json.load(open("text_embeddings.json", "r"))
-train_iter = load_data_from_hdf5(file_list, batch_size=global_batch_size, file_batch_size=global_batch_size // 2, embedding_dict=text_embeddings)
+train_iter = load_data_from_hdf5(file_list, batch_size=global_batch_size, file_batch_size=global_batch_size // 1, embedding_dict=text_embeddings)
 
 # train_iter = train_dataset.as_numpy_iterator()
 
@@ -383,7 +389,6 @@ def create_train_state(model, batch, rng, optimizer):
     rng, rng2, rng3 = jax.random.split(rng, 3)
     
     ### 将这个改成预训练的模型
-    variables = copy.deepcopy(pretrained_variables)
     
     # variables = model.init(
     #     {"params": rng, "random": rng3},
@@ -392,8 +397,8 @@ def create_train_state(model, batch, rng, optimizer):
     #     train=False,
     # )
 
-    params = flax.core.unfreeze(variables["params"])
-    batch_stats = flax.core.unfreeze(variables["batch_stats"])
+    params = flax.core.unfreeze(decision_variables["params"])
+    batch_stats = flax.core.unfreeze(decision_variables["batch_stats"])
 
     train_state = TrainState(
         step=0,
