@@ -30,6 +30,9 @@ import functools
 from typing import Callable, Sequence
 import matplotlib.pyplot as plt
 
+from flax import serialization
+from flax.training import checkpoints
+import pdb
 
 MEAN_RGB = [0.485, 0.456, 0.406]
 STDDEV_RGB = [0.229, 0.224, 0.225]
@@ -876,6 +879,8 @@ class Transformer(nn.Module):
     pos = jax.nn.one_hot(pos, seqlen)
 
     x = nn.Dense(self.feed_forward_output_size)(x)
+    
+    ### FIXME: 这里的positional embedding需要从1380改成1440个token
     pos_emb = nn.Dense(self.feed_forward_output_size)(pos)
     x += pos_emb
 
@@ -1333,5 +1338,3 @@ class RT1(nn.Module):
             mask = 1
         action_mask[i, j] = mask
     return default_attn_mask - action_mask
-
-

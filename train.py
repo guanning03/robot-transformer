@@ -38,6 +38,8 @@ from load_data import get_file_list, load_data_from_hdf5
 import sys
 import pdb
 
+from flax.training import checkpoints
+
 # @title Batch, and sample one training sample
 
 BATCH_SIZE = 6
@@ -80,6 +82,8 @@ rt1x_model = RT1(
     world_vector_range=(-2.0, 2.0)
 )
 
+NUM_TOKENS_TOTAL = SEQUENCE_LENGTH * (NUM_IMAGE_TOKENS + NUM_ACTION_TOKENS)
+
 # Initialize random weights for the model and run a forward pass.
 obs = {
     "image": jnp.ones((1, 15, 300, 300, 3)),
@@ -96,7 +100,8 @@ act = {
     'terminate_episode': jnp.ones((1, 15, 3), dtype=jnp.int32),
 }
 
-variables = rt1x_model.init(
+### 把from scratch改成from pretrained
+scratch_variables = rt1x_model.init(
     {
         "params": jax.random.PRNGKey(0),
         "random": jax.random.PRNGKey(0),
@@ -105,8 +110,24 @@ variables = rt1x_model.init(
     act,
     train=False,
 )
+
+def load_from_pretrained(checkpoint_path):
+    state_dict = checkpoints.restore_checkpoint(checkpoint_path, None)
+    variables = {
+        'params': state_dict['params'],
+        'batch_stats': state_dict['batch_stats'],
+    }
+
+    ### 对positional_embedding做特殊修改
+    variables['params']['Transformer_0']['Dense_1'] = scratch_variables['params']['Transformer_0']['Dense_1']
+    
+    return variables
+
+pretrained_variables = load_from_pretrained('rt_1_x_jax')
+del scratch_variables
+
 model_output = rt1x_model.apply(
-    variables,
+    pretrained_variables,
     obs,
     act,
     train=False,
@@ -116,7 +137,7 @@ model_output = rt1x_model.apply(
 
 # Inspect the model weights and output.
 
-param_count = sum(x.size for x in jax.tree_util.tree_leaves(variables["params"]))
+param_count = sum(x.size for x in jax.tree_util.tree_leaves(pretrained_variables["params"]))
 print(f"Number of parameters: {param_count}")
 
 print(f"Output shape: {model_output.shape}.")
@@ -360,12 +381,16 @@ def create_train_state(model, batch, rng, optimizer):
     act_input = batch["action"]
 
     rng, rng2, rng3 = jax.random.split(rng, 3)
-    variables = model.init(
-        {"params": rng, "random": rng3},
-        obs=obs_input,
-        act=act_input,
-        train=False,
-    )
+    
+    ### 将这个改成预训练的模型
+    variables = copy.deepcopy(pretrained_variables)
+    
+    # variables = model.init(
+    #     {"params": rng, "random": rng3},
+    #     obs=obs_input,
+    #     act=act_input,
+    #     train=False,
+    # )
 
     params = flax.core.unfreeze(variables["params"])
     batch_stats = flax.core.unfreeze(variables["batch_stats"])
