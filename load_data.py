@@ -1003,7 +1003,20 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
                 'natural_language_embedding': np.array(natural_language_embedding)
                 },
             'action': {
-                'arms': np.array(arms_action),
+                'arms_l0': np.array(arms_action)[:,:,[0]],
+                'arms_l1': np.array(arms_action)[:,:,[1]],
+                'arms_l2': np.array(arms_action)[:,:,[2]],
+                'arms_l3': np.array(arms_action)[:,:,[3]],
+                'arms_l4': np.array(arms_action)[:,:,[4]],
+                'arms_l5': np.array(arms_action)[:,:,[5]],
+                'arms_l6': np.array(arms_action)[:,:,[6]],
+                'arms_r0': np.array(arms_action)[:,:,[7]],
+                'arms_r1': np.array(arms_action)[:,:,[8]],
+                'arms_r2': np.array(arms_action)[:,:,[9]],
+                'arms_r3': np.array(arms_action)[:,:,[10]],
+                'arms_r4': np.array(arms_action)[:,:,[11]],
+                'arms_r5': np.array(arms_action)[:,:,[12]],
+                'arms_r6': np.array(arms_action)[:,:,[13]],
                 'terminate_episode': terminate_episode
             },
             'is_last': np.zeros((batch_size, 15), dtype=bool),
