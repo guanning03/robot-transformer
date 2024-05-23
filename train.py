@@ -19,6 +19,7 @@ from rlds import transformations
 import tensorflow_datasets as tfds
 import tree
 from format import pytree_display, dataset_display, standardize_pytree, contain_nan
+import wandb
 
 import abc
 import dataclasses
@@ -37,12 +38,23 @@ from rt1 import RT1, detokenize_action, tokenize_action
 from load_data import get_file_list, load_data_from_hdf5
 import sys
 import pdb
-
+import time
 from flax.training import checkpoints
 
 # @title Batch, and sample one training sample
 
 MODE = 'pretrain' # 'finetune' or 'pretrain'
+wandb_config = {
+  'login_api_key': '256879fdda25bc1fb8ee4f0310e71615e92f75c9',
+  'project': 'rt-1-x',
+  'name': f'{MODE}',
+  'disabled': False
+}
+
+current_time = time.strftime("%Y%m%d-%H%M%S")
+
+wandb.login(key=wandb_config['login_api_key'])
+wandb.init(project=wandb_config['project'], name=wandb_config['name'], mode = 'online' if wandb_config['disabled'] == False else 'disabled')
 
 # Larger shuffle buffer leads to better performance, but consumes more RAM
 datasets = []
@@ -569,8 +581,9 @@ jitted_train_step = jax.jit(
 
 # @title Run the train loop
 
-num_train_steps = 1_000  # 1k for example, actual should be > 1M
+num_train_steps = 10_000_000  # 1k for example, actual should be > 1M
 log_loss_every_steps = 1
+save_every_steps = 1000
 
 
 # The state should be resharded since we may have loaded pretrained weights
@@ -585,12 +598,20 @@ for step in range(num_train_steps):
   rng_repl = jax.random.fold_in(rng_repl, step)
 
   batch = next(train_iter)
-  batch = jax.tree_map(_form_gda, batch, global_data_shape) ### 这个地方的batch无nan
+  batch = jax.tree_map(_form_gda, batch, global_data_shape)
     
   state_repl, metrics_update = jitted_train_step(
       state=state_repl, batch=batch, rng=rng_repl
   )
 
-  if step % log_loss_every_steps == 0 or is_last_step:
+  if (step + 1) % log_loss_every_steps == 0 or is_last_step:
     metrics_update = jax.device_get(metrics_update)
     print(f"Metrics: step={step}, {metrics_update}")
+    wandb.log(metrics_update, step=step)
+    
+  if (step + 1) % save_every_steps == 0 or is_last_step:
+    state_dict = {
+        'params': flax.core.freeze(state_repl.params),
+        'batch_stats': state_repl.batch_stats,
+    }
+    checkpoints.save_checkpoint(os.path.abspath(f'./checkpoints/{current_time}'), state_dict, step)
