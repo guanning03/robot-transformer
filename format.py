@@ -7,6 +7,7 @@ import tensorflow as tf
 from PIL import Image
 import io
 import importlib
+from typing import Optional, Union
 
 def pytree_display(example: dict):
     def print_shape_or_value(x):
@@ -41,3 +42,29 @@ def standardize_pytree(params):
     converted_tree = jax.tree_util.tree_map(print_shape_or_value, params)
     formatted_output = json.dumps(converted_tree, indent=4)
     return formatted_output
+
+def contain_nan(example: Union[dict, np.ndarray, jnp.ndarray]):
+    def has_nan(x):
+        if isinstance(x, np.ndarray):
+            return np.isnan(x).any()
+        elif isinstance(x, jnp.ndarray):
+            return jnp.isnan(x).any()
+        else:
+            return False
+    
+    if isinstance(example, dict):
+        return any(has_nan(x) for x in jax.tree_util.tree_leaves(example))
+    elif isinstance(example, (np.ndarray, jnp.ndarray)):
+        return has_nan(example)
+    else:
+        raise ValueError(f"Unsupported type: {type(example)}")
+
+# test_example = {
+#     'a': np.array([1, 2, 3]),
+#     'b': {
+#         'c': np.array([np.nan, 2, 3]),
+#         'd': np.array([1, 2, 3]),
+#     }
+# }
+
+# print(contain_nan(test_example))

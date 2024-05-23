@@ -18,7 +18,7 @@ import reverb
 from rlds import transformations
 import tensorflow_datasets as tfds
 import tree
-from format import pytree_display, dataset_display, standardize_pytree
+from format import pytree_display, dataset_display, standardize_pytree, contain_nan
 
 import abc
 import dataclasses
@@ -96,7 +96,20 @@ act = {
     # "base_displacement_vertical_rotation": jnp.ones((1, 15, 1)),
     # "base_displacement_vector": jnp.ones((1, 15, 2)),
     # "terminate_episode": jnp.ones((1, 15, 3), dtype=jnp.int32),
-    'arms': jnp.ones((1, 15, 14)),
+    'arms_l0': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_l1': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_l2': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_l3': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_l4': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_l5': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_l6': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_r0': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_r1': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_r2': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_r3': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_r4': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_r5': jnp.ones((1, 15, 1), dtype=jnp.int32),
+    'arms_r6': jnp.ones((1, 15, 1), dtype=jnp.int32),
     'terminate_episode': jnp.ones((1, 15, 3), dtype=jnp.int32),
 }
 
@@ -475,7 +488,7 @@ def rt1_loss(
           "random": random_rng,
       },
   )
-
+  
   vocab_size = model.vocab_size
 
   # `action` is dict of (B, T, ...), we combine actions into B*T batch to
@@ -483,7 +496,7 @@ def rt1_loss(
   action = jax.tree_map(lambda x: jnp.reshape(x, (bs * seqlen, -1)), action)
   labels = tokenize_action(action, vocab_size=vocab_size)
   labels = jax.tree_map(lambda x: jnp.reshape(x, (bs, seqlen, -1)), labels)
-  labels = labels[:, :, :, None]  # labels should be (B, seqlen, 11, 1)
+  labels = labels[:, :, :, None]  # (B, 15, 15, 1)
 
   # Get num_action_tokens tokens for the action prediction. By default,
   # RT-1 computes the loss for all `seqlen * num_action_tokens`, not just
@@ -497,10 +510,11 @@ def rt1_loss(
   num_image_tokens = model.num_image_tokens
   num_action_tokens = model.num_action_tokens
   time_step_tokens = num_image_tokens + num_action_tokens
-  logits = jnp.reshape(logits, (bs, seqlen, time_step_tokens, vocab_size))
-  logits = logits[:, :, num_image_tokens - 1 : -1]
+  logits = jnp.reshape(logits, (bs, seqlen, time_step_tokens, vocab_size))  ### (B, 15, 96, 512)
+  logits = logits[:, :, num_image_tokens - 1 : -1] ### (B, 15, 15, 512)
 
   logp = jax.nn.log_softmax(logits)
+  
   loglik = jnp.take_along_axis(logp, labels, axis=-1)
   loglik = jnp.mean(loglik, axis=(1, 2, 3))
 
@@ -571,8 +585,8 @@ for step in range(num_train_steps):
   rng_repl = jax.random.fold_in(rng_repl, step)
 
   batch = next(train_iter)
-  batch = jax.tree_map(_form_gda, batch, global_data_shape)
-
+  batch = jax.tree_map(_form_gda, batch, global_data_shape) ### 这个地方的batch无nan
+    
   state_repl, metrics_update = jitted_train_step(
       state=state_repl, batch=batch, rng=rng_repl
   )

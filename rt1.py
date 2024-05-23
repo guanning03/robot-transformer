@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 
 from flax import serialization
 from flax.training import checkpoints
-import pdb
+import pdb, json
 
 MEAN_RGB = [0.485, 0.456, 0.406]
 STDDEV_RGB = [0.229, 0.224, 0.225]
@@ -1076,9 +1076,24 @@ def tokenize_action(
   terminate_episode = jnp.expand_dims(terminate_episode, -1)
   terminate_episode = terminate_episode.astype(jnp.int32)
   action_tokens.append(terminate_episode)
+  
+  dataset_statistics = json.load(open('dataset_statistics.json', 'r'))
 
   for act_name, act_min, act_max in [
-      ('arms', -1.0, 1.0),
+      ('arms_l0', dataset_statistics['action']['min'][0], dataset_statistics['action']['max'][0]),
+      ('arms_l1', dataset_statistics['action']['min'][1], dataset_statistics['action']['max'][1]),
+      ('arms_l2', dataset_statistics['action']['min'][2], dataset_statistics['action']['max'][2]),
+      ('arms_l3', dataset_statistics['action']['min'][3], dataset_statistics['action']['max'][3]),
+      ('arms_l4', dataset_statistics['action']['min'][4], dataset_statistics['action']['max'][4]),
+      ('arms_l5', dataset_statistics['action']['min'][5], dataset_statistics['action']['max'][5]),
+      ('arms_l6', dataset_statistics['action']['min'][6], dataset_statistics['action']['max'][6]),
+      ('arms_r0', dataset_statistics['action']['min'][7], dataset_statistics['action']['max'][7]),
+      ('arms_r1', dataset_statistics['action']['min'][8], dataset_statistics['action']['max'][8]),
+      ('arms_r2', dataset_statistics['action']['min'][9], dataset_statistics['action']['max'][9]),
+      ('arms_r3', dataset_statistics['action']['min'][10], dataset_statistics['action']['max'][10]),
+      ('arms_r4', dataset_statistics['action']['min'][11], dataset_statistics['action']['max'][11]),
+      ('arms_r5', dataset_statistics['action']['min'][12], dataset_statistics['action']['max'][12]),
+      ('arms_r6', dataset_statistics['action']['min'][13], dataset_statistics['action']['max'][13]),
       # ('world_vector', world_vector_range[0], world_vector_range[1]),
       # ('rotation_delta', -np.pi / 2, np.pi / 2),
       # ('gripper_closedness_action', -1.0, 1.0),
@@ -1086,8 +1101,8 @@ def tokenize_action(
       # ('base_displacement_vector', -1.0, 1.0),
   ]:
     act = actions[act_name]
-    # act = jnp.clip(act, act_min, act_max)
-    # act = (act - act_min) / (act_max - act_min)
+    act = jnp.clip(act, act_min, act_max)
+    act = (act - act_min) / (act_max - act_min)
     act = act * (vocab_size - 1)
     act = act.astype(jnp.int32)
     action_tokens.append(act)
@@ -1117,7 +1132,20 @@ def detokenize_action(
   terminate_episode = jax.nn.one_hot(terminate_episode, 3)
 
   raw_actions = dict(
-    arms = tokenized_actions[:, 1:14].astype(jnp.float32),
+    arms_l0=tokenized_actions[:, 1:2].astype(jnp.float32),
+    arms_l1=tokenized_actions[:, 2:3].astype(jnp.float32),
+    arms_l2=tokenized_actions[:, 3:4].astype(jnp.float32),
+    arms_l3=tokenized_actions[:, 4:5].astype(jnp.float32),
+    arms_l4=tokenized_actions[:, 5:6].astype(jnp.float32),
+    arms_l5=tokenized_actions[:, 6:7].astype(jnp.float32),
+    arms_l6=tokenized_actions[:, 7:8].astype(jnp.float32),
+    arms_r0=tokenized_actions[:, 8:9].astype(jnp.float32),
+    arms_r1=tokenized_actions[:, 9:10].astype(jnp.float32),
+    arms_r2=tokenized_actions[:, 10:11].astype(jnp.float32),
+    arms_r3=tokenized_actions[:, 11:12].astype(jnp.float32),
+    arms_r4=tokenized_actions[:, 12:13].astype(jnp.float32),
+    arms_r5=tokenized_actions[:, 13:14].astype(jnp.float32),
+    arms_r6=tokenized_actions[:, 14:15].astype(jnp.float32),
       # world_vector=tokenized_actions[:, 1:4].astype(jnp.float32),
       # rotation_delta=tokenized_actions[:, 4:7].astype(jnp.float32),
       # gripper_closedness_action=tokenized_actions[:, 7:8].astype(jnp.float32),
@@ -1127,19 +1155,29 @@ def detokenize_action(
       # base_displacement_vector=tokenized_actions[:, 9:11].astype(jnp.float32),
   )
 
+  dataset_statistics = json.load(open('dataset_statistics.json', 'r'))
+  
   act_dict = {'terminate_episode': terminate_episode.astype(jnp.int32)}
   for act_name, act_min, act_max in [
-      ('arms', -1.0, 1.0),
-      # ('world_vector', world_vector_range[0], world_vector_range[1]),
-      # ('rotation_delta', -np.pi / 2, np.pi / 2),
-      # ('gripper_closedness_action', -1.0, 1.0),
-      # ('base_displacement_vertical_rotation', -np.pi, np.pi),
-      # ('base_displacement_vector', -1.0, 1.0),
+      ('arms_l0', dataset_statistics['action']['min'][0], dataset_statistics['action']['max'][0]),
+      ('arms_l1', dataset_statistics['action']['min'][1], dataset_statistics['action']['max'][1]),
+      ('arms_l2', dataset_statistics['action']['min'][2], dataset_statistics['action']['max'][2]),
+      ('arms_l3', dataset_statistics['action']['min'][3], dataset_statistics['action']['max'][3]),
+      ('arms_l4', dataset_statistics['action']['min'][4], dataset_statistics['action']['max'][4]),
+      ('arms_l5', dataset_statistics['action']['min'][5], dataset_statistics['action']['max'][5]),
+      ('arms_l6', dataset_statistics['action']['min'][6], dataset_statistics['action']['max'][6]),
+      ('arms_r0', dataset_statistics['action']['min'][7], dataset_statistics['action']['max'][7]),
+      ('arms_r1', dataset_statistics['action']['min'][8], dataset_statistics['action']['max'][8]),
+      ('arms_r2', dataset_statistics['action']['min'][9], dataset_statistics['action']['max'][9]),
+      ('arms_r3', dataset_statistics['action']['min'][10], dataset_statistics['action']['max'][10]),
+      ('arms_r4', dataset_statistics['action']['min'][11], dataset_statistics['action']['max'][11]),
+      ('arms_r5', dataset_statistics['action']['min'][12], dataset_statistics['action']['max'][12]),
+      ('arms_r6', dataset_statistics['action']['min'][13], dataset_statistics['action']['max'][13]),
   ]:
     act = raw_actions[act_name]
     act = act / (vocab_size - 1)
-    # act = act * (act_max - act_min)
-    # act = act + act_min
+    act = act * (act_max - act_min)
+    act = act + act_min
     act_dict[act_name] = act
 
   return act_dict
