@@ -3,11 +3,16 @@ import jax.numpy as jnp
 import numpy as np
 import json
 import tensorflow as tf
-
+import torch
 from PIL import Image
 import io
 import importlib
 from typing import Optional, Union
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+import jax.numpy as jnp
+import torch
 
 def pytree_display(example: dict):
     def print_shape_or_value(x):
@@ -68,3 +73,32 @@ def contain_nan(example: Union[dict, np.ndarray, jnp.ndarray]):
 # }
 
 # print(contain_nan(test_example))
+
+def save_attention_mask(matrix, filename="attn_mask.png"):
+    if isinstance(matrix, np.ndarray):
+        data = matrix
+    elif isinstance(matrix, jnp.ndarray):
+        data = np.array(matrix)
+    elif torch.is_tensor(matrix):
+        data = matrix.numpy()
+    else:
+        raise ValueError("Input must be a numpy array, jax array, or tensor.")
+
+    # Ensure the matrix is of the correct shape
+    assert data.shape[0] == data.shape[1], "Input matrix must be square (A, A)."
+    
+    A = data.shape[0]
+
+    # Create the plot
+    plt.figure(figsize=(6, 6))
+    plt.imshow(data, cmap='gray', interpolation='none')
+    plt.colorbar()
+    plt.title("Attention Mask")
+
+    # Set the labels for the x and y axis
+    plt.xlabel("Columns")
+    plt.ylabel("Rows")
+
+    # Save the plot to a file
+    plt.savefig(filename)
+    plt.close()

@@ -29,7 +29,7 @@ import tensorflow_datasets as tfds
 import functools
 from typing import Callable, Sequence
 import matplotlib.pyplot as plt
-
+from format import save_attention_mask
 from flax import serialization
 from flax.training import checkpoints
 import pdb, json
