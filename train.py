@@ -583,7 +583,7 @@ jitted_train_step = jax.jit(
 
 num_train_steps = 10_000_000  # 1k for example, actual should be > 1M
 log_loss_every_steps = 1
-save_every_steps = 1000
+save_every_steps = 10000
 
 
 # The state should be resharded since we may have loaded pretrained weights
@@ -614,4 +614,8 @@ for step in range(num_train_steps):
         'params': flax.core.freeze(state_repl.params),
         'batch_stats': state_repl.batch_stats,
     }
-    checkpoints.save_checkpoint(os.path.abspath(f'./checkpoints/{current_time}'), state_dict, step)
+    checkpoints.save_checkpoint(ckpt_dir = os.path.abspath(f'./checkpoints/{current_time}'), 
+                                target = state_dict, 
+                                step = step,
+                                prefix = 'checkpoint_',
+                                keep = None)
