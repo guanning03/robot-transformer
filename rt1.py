@@ -1249,7 +1249,9 @@ class RT1(nn.Module):
       )
     else:
       context_image_tokens = obs_tokens
-
+    
+    ### context_image_tokens.shape (bz, 15, 81, 512)
+    
     if self.sow_intermediates:
       self.sow('intermediates', 'image_tokens', context_image_tokens)
 

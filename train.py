@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 from typing import Any, Callable, Dict, Optional, Sequence, Union, NamedTuple, Tuple
 
@@ -48,7 +48,7 @@ wandb_config = {
   'login_api_key': '256879fdda25bc1fb8ee4f0310e71615e92f75c9',
   'project': 'rt-1-x',
   'name': f'{MODE}',
-  'disabled': False
+  'disabled': True
 }
 
 current_time = time.strftime("%Y%m%d-%H%M%S")
@@ -77,7 +77,7 @@ weights = []
 # sample = next(trajectory_dataset_iter)
 
 
-SEQUENCE_LENGTH = 15
+SEQUENCE_LENGTH = 32
 NUM_ACTION_TOKENS = 15
 LAYER_SIZE = 256
 VOCAB_SIZE = 512
@@ -99,8 +99,8 @@ NUM_TOKENS_TOTAL = SEQUENCE_LENGTH * (NUM_IMAGE_TOKENS + NUM_ACTION_TOKENS)
 
 # Initialize random weights for the model and run a forward pass.
 obs = {
-    "image": jnp.ones((1, 15, 300, 300, 3)),
-    "natural_language_embedding": jnp.ones((1, 15, 512)),
+    "image": jnp.ones((1, SEQUENCE_LENGTH, 300, 300, 3)),
+    "natural_language_embedding": jnp.ones((1, SEQUENCE_LENGTH, 512)),
 }
 act = {
     # "world_vector": jnp.ones((1, 15, 3)),
@@ -109,21 +109,21 @@ act = {
     # "base_displacement_vertical_rotation": jnp.ones((1, 15, 1)),
     # "base_displacement_vector": jnp.ones((1, 15, 2)),
     # "terminate_episode": jnp.ones((1, 15, 3), dtype=jnp.int32),
-    'arms_l0': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_l1': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_l2': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_l3': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_l4': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_l5': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_l6': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_r0': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_r1': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_r2': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_r3': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_r4': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_r5': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'arms_r6': jnp.ones((1, 15, 1), dtype=jnp.int32),
-    'terminate_episode': jnp.ones((1, 15, 3), dtype=jnp.int32),
+    'arms_l0': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_l1': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_l2': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_l3': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_l4': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_l5': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_l6': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_r0': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_r1': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_r2': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_r3': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_r4': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_r5': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'arms_r6': jnp.ones((1, SEQUENCE_LENGTH, 1), dtype=jnp.int32),
+    'terminate_episode': jnp.ones((1, SEQUENCE_LENGTH, 3), dtype=jnp.int32),
 }
 
 ### 把from scratch改成from pretrained
@@ -298,7 +298,7 @@ def prepare_for_model_input(
 
 # Actual global batch size is 1024. Use a smaller batch size for this colab
 # example.
-PER_DEVICE_BATCH_SIZE = 4
+PER_DEVICE_BATCH_SIZE = 1
 
 def reshard(tree, shardings):
   """Take an arbitrarily sharded pytree and shard it according to `shardings`.
@@ -382,7 +382,8 @@ local_batch_size = jax.local_device_count() * PER_DEVICE_BATCH_SIZE
 file_list = get_file_list("data")
 
 text_embeddings = json.load(open("text_embeddings.json", "r"))
-train_iter = load_data_from_hdf5(file_list, batch_size=global_batch_size, file_batch_size=global_batch_size // 1, embedding_dict=text_embeddings)
+train_iter = load_data_from_hdf5(file_list, batch_size=global_batch_size, file_batch_size=global_batch_size // 1, 
+                                 embedding_dict=text_embeddings, max_length = SEQUENCE_LENGTH)
 
 # train_iter = train_dataset.as_numpy_iterator()
 

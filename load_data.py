@@ -33,6 +33,11 @@ import random
 import h5py
 import io
 import pdb
+from concurrent.futures import ThreadPoolExecutor
+import queue
+import threading
+from functools import wraps
+
 # @title Transformation definitions
 
 # For an example usage of the code in this code cell, please take a look at the
@@ -947,8 +952,38 @@ import pdb
 #     'toto': 5,
 # }
 
+def prefetch_batches(max_prefetch=20):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            batch_queue = queue.Queue(maxsize=max_prefetch)
+            stop_event = threading.Event()
 
-def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
+            def producer():
+                for batch in func(*args, **kwargs):
+                    if stop_event.is_set():
+                        break
+                    batch_queue.put(batch)
+                batch_queue.put(None)  # Sentinel to signal the end
+
+            executor = ThreadPoolExecutor(num_workers = 20)
+            executor.submit(producer)
+
+            def consumer():
+                while True:
+                    batch = batch_queue.get()
+                    if batch is None:  # End of batches
+                        break
+                    yield batch
+
+            return consumer()
+
+        return wrapper
+    return decorator
+
+
+@prefetch_batches(max_prefetch=20)
+def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict, max_length = 32):
     
     def pad_and_resize(image, target_size):
         original_size = image.size
@@ -972,16 +1007,18 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
         file_list_sampled = random.sample(file_list, file_batch_size)
         num_per_file = batch_size // file_batch_size
         natural_language_embedding = []
-        image = []
+        image_high = []
+        image_left = []
+        image_right = []
         arms_action = []
         
-        length = np.random.randint(1, 16, batch_size)
-        is_first = np.zeros((batch_size, 15), dtype=bool)
+        length = np.random.randint(1, max_length + 1, batch_size)
+        is_first = np.zeros((batch_size, max_length), dtype=bool)
         for i in range(batch_size):
-            if length[i] != 15:
-                is_first[i, 15 - length[i]] = True
+            if length[i] != max_length:
+                is_first[i, max_length - length[i]] = True
                 
-        terminate_episode = np.zeros((batch_size, 15, 3), dtype=np.int32)
+        terminate_episode = np.zeros((batch_size, max_length, 3), dtype=np.int32)
         terminate_episode[:,:,1] = 1
         
         for i, file in enumerate(file_list_sampled):
@@ -989,17 +1026,23 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
                 text_embedding = np.array(embedding_dict[f['instruction'][()].decode('utf-8')])
                 for j in range(num_per_file):
                     l = length[i * num_per_file + j]
-                    natural_language_embedding.append([np.zeros(512) for _ in range(15 - l)] + [text_embedding for _ in range(l)])
+                    natural_language_embedding.append([np.zeros(512) for _ in range(max_length - l)] + [text_embedding for _ in range(l)])
                     traj_l = f['action'].shape[0]
                     start = np.random.randint(0, traj_l - l + 1)
-                    image.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
-                                        ((15 - l, 0), (0, 0), (0, 0), (0, 0)), 'constant'))
-                    arms_action.append(np.pad(np.array(f['action'][start:start+l]), ((15 - l, 0), (0, 0)), 'constant'))
+                    image_high.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
+                                        ((max_length - l, 0), (0, 0), (0, 0), (0, 0)), 'constant'))
+                    image_left.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
+                                        ((max_length - l, 0), (0, 0), (0, 0), (0, 0)), 'constant'))
+                    image_right.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
+                                        ((max_length - l, 0), (0, 0), (0, 0), (0, 0)), 'constant'))
+                    arms_action.append(np.pad(np.array(f['action'][start:start+l]), ((max_length - l, 0), (0, 0)), 'constant'))
         
         batch = {
             'is_first': np.array(is_first),
             'observation': {
-                'image': np.array(image),
+                'image_high': np.array(image_high),
+                'image_left': np.array(image_left),
+                'image_right': np.array(image_right),
                 'natural_language_embedding': np.array(natural_language_embedding)
                 },
             'action': {
@@ -1019,10 +1062,9 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
                 'arms_r6': np.array(arms_action)[:,:,[13]],
                 'terminate_episode': terminate_episode
             },
-            'is_last': np.zeros((batch_size, 15), dtype=bool),
-            'is_terminal': np.zeros((batch_size, 15), dtype=bool)
+            'is_last': np.zeros((batch_size, max_length), dtype=bool),
+            'is_terminal': np.zeros((batch_size, max_length), dtype=bool)
             }
-        pdb.set_trace()
         
         yield batch
   
