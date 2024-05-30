@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
 
 from typing import Any, Callable, Dict, Optional, Sequence, Union, NamedTuple, Tuple
 
@@ -35,19 +35,18 @@ import functools
 from typing import Callable, Sequence
 import matplotlib.pyplot as plt
 from rt1 import RT1, detokenize_action, tokenize_action
-from load_data import get_file_list, load_data_from_hdf5
+from load_data import get_file_list, load_data_from_hdf5, load_data_from_hdf5_2
 import sys
 import pdb
 import time
 from flax.training import checkpoints
 import gc
 from jax.config import config
-config.update('jax_cache_size_bytes', 2**32)
 
 # @title Batch, and sample one training sample
 
 MODE = 'pretrain' # 'finetune' or 'pretrain'
-PER_DEVICE_BATCH_SIZE = 1
+PER_DEVICE_BATCH_SIZE = 2
 wandb_config = {
   'login_api_key': '256879fdda25bc1fb8ee4f0310e71615e92f75c9',
   'project': 'rt-1-x',
@@ -389,7 +388,7 @@ local_batch_size = jax.local_device_count() * PER_DEVICE_BATCH_SIZE
 file_list = get_file_list("data/put_orange_paperbox/")
 
 text_embeddings = json.load(open("text_embeddings.json", "r"))
-train_iter = load_data_from_hdf5(file_list, batch_size=global_batch_size, file_batch_size=global_batch_size // 1, 
+train_iter = load_data_from_hdf5_2(file_list, batch_size=global_batch_size, file_batch_size=global_batch_size // 1, 
                                  embedding_dict=text_embeddings, max_length = SEQUENCE_LENGTH)
 
 # train_iter = train_dataset.as_numpy_iterator()
