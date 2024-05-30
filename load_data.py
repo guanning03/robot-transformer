@@ -1031,9 +1031,9 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict, 
                     start = np.random.randint(0, traj_l - l + 1)
                     image_high.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
                                         ((max_length - l, 0), (0, 0), (0, 0), (0, 0)), 'constant'))
-                    image_left.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
+                    image_left.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_left_wrist'][start:start+l]))),
                                         ((max_length - l, 0), (0, 0), (0, 0), (0, 0)), 'constant'))
-                    image_right.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_high'][start:start+l]))),
+                    image_right.append(np.pad(np.array(list(map(bytes_image_to_np, f['observations']['images']['cam_right_wrist'][start:start+l]))),
                                         ((max_length - l, 0), (0, 0), (0, 0), (0, 0)), 'constant'))
                     arms_action.append(np.pad(np.array(f['action'][start:start+l]), ((max_length - l, 0), (0, 0)), 'constant'))
         

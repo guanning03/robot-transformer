@@ -1195,6 +1195,7 @@ class RT1(nn.Module):
   dropout_rate: float = 0.1
   vocab_size: int = 256
   num_image_tokens: int = 8
+  num_images: int = 1
   num_action_tokens: int = 11
   image_num_features: int = 512
 
@@ -1208,18 +1209,28 @@ class RT1(nn.Module):
   sow_intermediates: bool = False
 
   def setup(self):
-    self.image_tokenizer = ImageTokenizer(
+    self.image_tokenizer_high = ImageTokenizer(
+        num_tokens=self.num_image_tokens,
+        num_features=self.image_num_features,
+        use_token_learner=self.use_token_learner,
+    )
+    self.image_tokenizer_left = ImageTokenizer(
+        num_tokens=self.num_image_tokens,
+        num_features=self.image_num_features,
+        use_token_learner=self.use_token_learner,
+    )
+    self.image_tokenizer_right = ImageTokenizer(
         num_tokens=self.num_image_tokens,
         num_features=self.image_num_features,
         use_token_learner=self.use_token_learner,
     )
 
-  def tokenize_image(
-      self, image: jnp.ndarray, context: jnp.ndarray, *, train: bool
-  ):
-    bs, seqlen, *_ = image.shape
-    context = jnp.reshape(context, [bs * seqlen, -1])
-    return self.image_tokenizer(image, context_input=context, train=train)
+  # def tokenize_image(
+  #     self, image: jnp.ndarray, context: jnp.ndarray, *, train: bool
+  # ):
+  #   bs, seqlen, *_ = image.shape
+  #   context = jnp.reshape(context, [bs * seqlen, -1])
+  #   return self.image_tokenizer(image, context_input=context, train=train)
 
   @nn.compact
   def __call__(
@@ -1241,11 +1252,15 @@ class RT1(nn.Module):
     # the input sequence.
     if obs_tokens is None:
       # Get image + language fused tokens.
-      image = obs['image']
+      image_high, image_left, image_right = obs['image_high'], obs['image_left'], obs['image_right']
       lang = obs['natural_language_embedding']
       lang = jnp.reshape(lang, [bs * seqlen, -1])
-      context_image_tokens = self.image_tokenizer(
-          image=image, context_input=lang, train=train
+      context_image_tokens = jnp.stack(
+        [
+          self.image_tokenizer_high(image_high, context_input=lang, train=train),
+          self.image_tokenizer_left(image_left, context_input=lang, train=train),
+          self.image_tokenizer_right(image_right, context_input=lang, train=train),
+        ], axis = -2
       )
     else:
       context_image_tokens = obs_tokens
@@ -1292,7 +1307,7 @@ class RT1(nn.Module):
     num_action_tokens = action_tokens.shape[-2]
     full_tokens = jnp.reshape(
         full_tokens,
-        [bs, seqlen * (self.num_image_tokens + num_action_tokens), -1],
+        [bs, seqlen * (self.num_image_tokens * self.num_images + num_action_tokens), -1],
     )
 
     attn_mask = self._construct_attn_mask(
@@ -1330,9 +1345,9 @@ class RT1(nn.Module):
     if k < 0 or k >= num_tokens:
       return -1
 
-    single_time_step_num_tokens = self.num_image_tokens + self.num_action_tokens
+    single_time_step_num_tokens = self.num_image_tokens * self.num_images + self.num_action_tokens
     n = k
-    if n % single_time_step_num_tokens < self.num_image_tokens:
+    if n % single_time_step_num_tokens < self.num_image_tokens * self.num_images:
       return -1
 
     return int(n / single_time_step_num_tokens)
@@ -1352,6 +1367,7 @@ class RT1(nn.Module):
       A (num_tokens, num_tokens) attention mask.
     """
     default_attn_mask = np.tril(np.ones((num_tokens, num_tokens), np.int32))
+    # default_attn_mask = np.ones((num_tokens, num_tokens), dtype=np.int32)
     action_mask = np.zeros(shape=(num_tokens, num_tokens), dtype=np.int32)
 
     for i in range(num_tokens):

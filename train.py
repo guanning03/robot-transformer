@@ -92,10 +92,11 @@ rt1x_model = RT1(
     # Use token learner to reduce tokens per image to 81.
     use_token_learner=True,
     # RT-1-X uses (-2.0, 2.0) instead of (-1.0, 1.0).
-    world_vector_range=(-2.0, 2.0)
+    world_vector_range=(-2.0, 2.0),
+    num_images = NUM_IMAGES
 )
 
-NUM_TOKENS_TOTAL = SEQUENCE_LENGTH * (NUM_IMAGE_TOKENS + NUM_ACTION_TOKENS)
+NUM_TOKENS_TOTAL = SEQUENCE_LENGTH * (NUM_IMAGE_TOKENS * NUM_IMAGES + NUM_ACTION_TOKENS)
 
 # Initialize random weights for the model and run a forward pass.
 obs = {
@@ -176,13 +177,13 @@ print(f"Output shape: {model_output.shape}.")
 
 # Extract the actions from the model.
 time_step_tokens = (
-    NUM_IMAGE_TOKENS + NUM_ACTION_TOKENS
+    NUM_IMAGE_TOKENS * NUM_IMAGES + NUM_ACTION_TOKENS
 )
 output_logits = jnp.reshape(
     model_output, (1, SEQUENCE_LENGTH, time_step_tokens, -1)
 )
 action_logits = output_logits[:, -1, ...]
-action_logits = action_logits[:, NUM_IMAGE_TOKENS - 1 : -1]
+action_logits = action_logits[:, NUM_IMAGE_TOKENS * NUM_IMAGES - 1 : -1]
 
 action_logp = jax.nn.softmax(action_logits)
 action_token = jnp.argmax(action_logp, axis=-1)
@@ -523,9 +524,10 @@ def rt1_loss(
   # the logits, for the "next token" prediction.
   num_image_tokens = model.num_image_tokens
   num_action_tokens = model.num_action_tokens
-  time_step_tokens = num_image_tokens + num_action_tokens
+  num_images = model.num_images
+  time_step_tokens = num_image_tokens * num_images + num_action_tokens
   logits = jnp.reshape(logits, (bs, seqlen, time_step_tokens, vocab_size))  ### (B, 15, 96, 512)
-  logits = logits[:, :, num_image_tokens - 1 : -1] ### (B, 15, 15, 512)
+  logits = logits[:, :, num_image_tokens * num_images:] ### (B, 15, 15, 512)
 
   logp = jax.nn.log_softmax(logits)
   
