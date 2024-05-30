@@ -47,6 +47,7 @@ config.update('jax_cache_size_bytes', 2**32)
 # @title Batch, and sample one training sample
 
 MODE = 'pretrain' # 'finetune' or 'pretrain'
+PER_DEVICE_BATCH_SIZE = 1
 wandb_config = {
   'login_api_key': '256879fdda25bc1fb8ee4f0310e71615e92f75c9',
   'project': 'rt-1-x',
@@ -304,7 +305,7 @@ def prepare_for_model_input(
 
 # Actual global batch size is 1024. Use a smaller batch size for this colab
 # example.
-PER_DEVICE_BATCH_SIZE = 1
+
 
 def reshard(tree, shardings):
   """Take an arbitrarily sharded pytree and shard it according to `shardings`.
