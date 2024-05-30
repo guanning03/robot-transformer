@@ -32,7 +32,7 @@ import matplotlib.pyplot as plt
 import random
 import h5py
 import io
-
+import pdb
 # @title Transformation definitions
 
 # For an example usage of the code in this code cell, please take a look at the
@@ -1022,6 +1022,7 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict):
             'is_last': np.zeros((batch_size, 15), dtype=bool),
             'is_terminal': np.zeros((batch_size, 15), dtype=bool)
             }
+        pdb.set_trace()
         
         yield batch
   

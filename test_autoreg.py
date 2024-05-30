@@ -79,7 +79,7 @@ variables = load_from_pretrained_straightforward("checkpoints/test/checkpoint_46
 model_output = rt1x_model.apply(
     variables,
     batch['observation'],
-    batch['action'],
+    jax.tree_map(lambda x: jnp.ones_like(x), batch['action']),
     train = False,
     rngs = {'random': jax.random.PRNGKey(0)}
 )
