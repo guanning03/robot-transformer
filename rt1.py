@@ -1242,8 +1242,8 @@ class RT1(nn.Module):
       *,
       train: bool,
   ):
-    bs = obs['image'].shape[0]
-    seqlen = obs['image'].shape[1]
+    bs = obs['image_high'].shape[0]
+    seqlen = obs['image_high'].shape[1]
 
     # Depending on whether `obs_tokens` is passed, we either run the full
     # sequence of images through the image tokenizer, or simply use the
@@ -1255,7 +1255,7 @@ class RT1(nn.Module):
       image_high, image_left, image_right = obs['image_high'], obs['image_left'], obs['image_right']
       lang = obs['natural_language_embedding']
       lang = jnp.reshape(lang, [bs * seqlen, -1])
-      context_image_tokens = jnp.stack(
+      context_image_tokens = jnp.concatenate(
         [
           self.image_tokenizer_high(image_high, context_input=lang, train=train),
           self.image_tokenizer_left(image_left, context_input=lang, train=train),
@@ -1311,7 +1311,7 @@ class RT1(nn.Module):
     )
 
     attn_mask = self._construct_attn_mask(
-        seqlen * (self.num_image_tokens + self.num_action_tokens)
+        seqlen * (self.num_image_tokens * self.num_images + self.num_action_tokens)
     )
     output_tokens = Transformer(
         num_layers=self.num_layers,

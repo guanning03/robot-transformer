@@ -40,6 +40,9 @@ import sys
 import pdb
 import time
 from flax.training import checkpoints
+import gc
+from jax.config import config
+config.update('jax_cache_size_bytes', 2**32)
 
 # @title Batch, and sample one training sample
 
@@ -100,7 +103,9 @@ NUM_TOKENS_TOTAL = SEQUENCE_LENGTH * (NUM_IMAGE_TOKENS * NUM_IMAGES + NUM_ACTION
 
 # Initialize random weights for the model and run a forward pass.
 obs = {
-    "image": jnp.ones((1, SEQUENCE_LENGTH, 300, 300, 3)),
+    "image_high": jnp.ones((1, SEQUENCE_LENGTH, 300, 300, 3)),
+    "image_left": jnp.ones((1, SEQUENCE_LENGTH, 300, 300, 3)),
+    "image_right": jnp.ones((1, SEQUENCE_LENGTH, 300, 300, 3)),
     "natural_language_embedding": jnp.ones((1, SEQUENCE_LENGTH, 512)),
 }
 act = {
@@ -380,7 +385,7 @@ local_batch_size = jax.local_device_count() * PER_DEVICE_BATCH_SIZE
 
 # train_dataset = train_dataset.prefetch(tf.data.AUTOTUNE)
 
-file_list = get_file_list("data")
+file_list = get_file_list("data/put_orange_paperbox/")
 
 text_embeddings = json.load(open("text_embeddings.json", "r"))
 train_iter = load_data_from_hdf5(file_list, batch_size=global_batch_size, file_batch_size=global_batch_size // 1, 
@@ -543,13 +548,22 @@ optimizer = optax.adam(learning_rate=1e-4, eps=1e-7)
 # Create the train state.
 # input: batch, rng, ds_info
 # output: state
+
+gc.collect()
+
 agent_create_train_state = functools.partial(
     create_train_state, model=rt1x_model, optimizer=optimizer
 )
+
+jax.profiler.save_device_memory_profiles('rt1x_memory_profile.prof')
+gc.collect()
+
 create_train_state_jit = jax.jit(
     agent_create_train_state,
     out_shardings=replicate_sharding,
 )
+
+gc.collect()
 
 global_data_shape = jax.tree_map(
     lambda x: (global_batch_size,) + x.shape[1:], sample_batch

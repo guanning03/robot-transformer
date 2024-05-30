@@ -966,7 +966,7 @@ def prefetch_batches(max_prefetch=20):
                     batch_queue.put(batch)
                 batch_queue.put(None)  # Sentinel to signal the end
 
-            executor = ThreadPoolExecutor(num_workers = 20)
+            executor = ThreadPoolExecutor(max_workers = 2)
             executor.submit(producer)
 
             def consumer():
@@ -982,7 +982,7 @@ def prefetch_batches(max_prefetch=20):
     return decorator
 
 
-@prefetch_batches(max_prefetch=20)
+@prefetch_batches(max_prefetch=2)
 def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict, max_length = 32):
     
     def pad_and_resize(image, target_size):
