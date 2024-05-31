@@ -487,8 +487,8 @@ def rt1_loss(
   observation = batch["observation"]
   action = batch["action"]
 
-  bs = observation["image"].shape[0]
-  seqlen = observation["image"].shape[1]
+  bs = observation["image_high"].shape[0]
+  seqlen = observation["image_high"].shape[1]
 
   # First, we encode the observations using the model.encode method.
   # This will give us an observation encoding (for the entire sequence).
@@ -555,7 +555,7 @@ agent_create_train_state = functools.partial(
     create_train_state, model=rt1x_model, optimizer=optimizer
 )
 
-jax.profiler.save_device_memory_profiles('rt1x_memory_profile.prof')
+jax.profiler.save_device_memory_profile('rt1x_memory_profile.prof')
 gc.collect()
 
 create_train_state_jit = jax.jit(
