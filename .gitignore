@@ -6,3 +6,5 @@ open_x_embodiment/
 .vscode/
 wandb/
 checkpoints/
+pretrained_variables.json
+*.prof

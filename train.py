@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2, 3'
 
 from typing import Any, Callable, Dict, Optional, Sequence, Union, NamedTuple, Tuple
 
@@ -18,7 +18,7 @@ import reverb
 from rlds import transformations
 import tensorflow_datasets as tfds
 import tree
-from format import pytree_display, dataset_display, standardize_pytree, contain_nan
+from format import pytree_display, dataset_display, standardize_pytree, contain_nan, pytree_save
 import wandb
 
 import abc
@@ -45,13 +45,13 @@ from jax.config import config
 
 # @title Batch, and sample one training sample
 
-MODE = 'pretrain' # 'finetune' or 'pretrain'
+MODE = 'finetune' # 'finetune' or 'pretrain'
 PER_DEVICE_BATCH_SIZE = 2
 wandb_config = {
   'login_api_key': '256879fdda25bc1fb8ee4f0310e71615e92f75c9',
   'project': 'rt-1-x',
   'name': f'{MODE}',
-  'disabled': True
+  'disabled': False
 }
 
 current_time = time.strftime("%Y%m%d-%H%M%S")
@@ -80,7 +80,7 @@ weights = []
 # sample = next(trajectory_dataset_iter)
 
 
-SEQUENCE_LENGTH = 32
+SEQUENCE_LENGTH = 8
 NUM_ACTION_TOKENS = 15
 LAYER_SIZE = 256
 VOCAB_SIZE = 512
@@ -150,9 +150,21 @@ def load_from_pretrained(checkpoint_path):
         'batch_stats': state_dict['batch_stats'],
     }
 
+    pytree_save(variables, 'pretrained_variables.json')
+
     ### 对positional_embedding做特殊修改
     variables['params']['Transformer_0']['Dense_1'] = scratch_variables['params']['Transformer_0']['Dense_1'].copy()
     
+    variables['params']['image_tokenizer_high'] = variables['params']['image_tokenizer'].copy()
+    variables['params']['image_tokenizer_left'] = variables['params']['image_tokenizer'].copy()
+    variables['params']['image_tokenizer_right'] = variables['params']['image_tokenizer'].copy()
+    del variables['params']['image_tokenizer']
+    
+    variables['batch_stats']['image_tokenizer_high'] = variables['batch_stats']['image_tokenizer'].copy()
+    variables['batch_stats']['image_tokenizer_left'] = variables['batch_stats']['image_tokenizer'].copy()
+    variables['batch_stats']['image_tokenizer_right'] = variables['batch_stats']['image_tokenizer'].copy()
+    del variables['batch_stats']['image_tokenizer']
+     
     return variables
 
 pretrained_variables = load_from_pretrained('rt_1_x_jax')
@@ -601,7 +613,7 @@ jitted_train_step = jax.jit(
 
 num_train_steps = 10_000_000  # 1k for example, actual should be > 1M
 log_loss_every_steps = 1
-save_every_steps = 10000
+save_every_steps = 100
 
 
 # The state should be resharded since we may have loaded pretrained weights
