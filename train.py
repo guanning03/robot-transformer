@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '2, 3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1, 5, 6, 7'
 
 from typing import Any, Callable, Dict, Optional, Sequence, Union, NamedTuple, Tuple
 
@@ -46,7 +46,7 @@ from jax.config import config
 # @title Batch, and sample one training sample
 
 MODE = 'finetune' # 'finetune' or 'pretrain'
-PER_DEVICE_BATCH_SIZE = 2
+PER_DEVICE_BATCH_SIZE = 1
 wandb_config = {
   'login_api_key': '256879fdda25bc1fb8ee4f0310e71615e92f75c9',
   'project': 'rt-1-x',
@@ -80,7 +80,7 @@ weights = []
 # sample = next(trajectory_dataset_iter)
 
 
-SEQUENCE_LENGTH = 8
+SEQUENCE_LENGTH = 32
 NUM_ACTION_TOKENS = 15
 LAYER_SIZE = 256
 VOCAB_SIZE = 512
@@ -648,4 +648,4 @@ for step in range(num_train_steps):
                                 target = state_dict, 
                                 step = step,
                                 prefix = 'checkpoint_',
-                                keep = None)
+                                keep = 10000000)

@@ -1068,7 +1068,7 @@ def load_data_from_hdf5(file_list, batch_size, file_batch_size, embedding_dict, 
         
         yield batch
         
-@prefetch_batches(max_prefetch=8)
+
 def load_data_from_hdf5_2(file_list, batch_size, file_batch_size, embedding_dict, max_length = 32):
     
     def pad_and_resize(image, target_size):
